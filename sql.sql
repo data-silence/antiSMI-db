@@ -209,12 +209,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-В таком случае, необходимо немного изменить триггеры, чтобы учитывать тот факт, что поле links уже является массивом text[]. Удалим ненужные преобразования и обновим функции триггеров.
-Шаг 1: Создание функций-триггеров
+-- В таком случае, необходимо немного изменить триггеры, чтобы учитывать тот факт, что поле links уже является массивом text[]. Удалим ненужные преобразования и обновим функции триггеров.
+-- Шаг 1: Создание функций-триггеров
 
-    Функция для вставки
-
-sql
+--     Функция для вставки
 
 CREATE OR REPLACE FUNCTION trg_insert_news_view() RETURNS trigger AS
 $$
@@ -242,9 +240,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-Функция для обновления
-
-sql
+-- Функция для обновления
 
 CREATE OR REPLACE FUNCTION trg_update_news_view() RETURNS trigger AS
 $$
@@ -275,9 +271,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-Функция для удаления
-
-sql
+-- Функция для удаления
 
 CREATE OR REPLACE FUNCTION trg_delete_news_view() RETURNS trigger AS
 $$
