@@ -219,21 +219,25 @@ $$
 BEGIN
     -- Вставка данных в таблицу news
     INSERT INTO news (url, title, resume, news, date, agency_id, category_id, links)
-    VALUES (NEW.url,
-            NEW.title,
-            NEW.resume,
-            NEW.news,
-            (NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',
-            (SELECT id FROM agencies WHERE telegram = NEW.agency),
-            (SELECT id FROM categories WHERE category = NEW.category),
-            NEW.links);
+    VALUES (
+        NEW.url,
+        NEW.title,
+        NEW.resume,
+        NEW.news,
+        (NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',
+        (SELECT id FROM agencies WHERE telegram = NEW.agency),
+        (SELECT id FROM categories WHERE category = NEW.category),
+        NEW.links
+    );
 
     -- Вставка данных в таблицу embs, если передан embedding
     IF NEW.embedding IS NOT NULL THEN
         INSERT INTO embs (date, url, embedding)
-        VALUES ((NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',
-                NEW.url,
-                NEW.embedding);
+        VALUES (
+            (NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',
+            NEW.url,
+            NEW.embedding
+        );
     END IF;
 
     RETURN NEW;
@@ -245,26 +249,62 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION trg_update_news_view() RETURNS trigger AS
 $$
 BEGIN
-    -- Обновление данных в таблице news
-    UPDATE news
-    SET title       = NEW.title,
-        resume      = NEW.resume,
-        news        = NEW.news,
-        date        = (NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',
-        agency_id   = (SELECT id FROM agencies WHERE telegram = NEW.agency),
-        category_id = (SELECT id FROM categories WHERE category = NEW.category),
-        links       = NEW.links
-    WHERE url = OLD.url
-      AND date = OLD.date;
+    -- Удаление старой записи из таблицы news
+    DELETE FROM news_view
+    WHERE url = OLD.url;
 
-    -- Обновление данных в таблице embs, если передан embedding
+    -- Удаление данных из таблицы embs
+    DELETE FROM embs
+    WHERE url = OLD.url;
+
+   -- Вставка новой записи с учетом условия изменения даты
+    IF NEW.date IS NOT DISTINCT FROM OLD.date THEN
+        INSERT INTO news (url, title, resume, news, date, agency_id, category_id, links)
+        VALUES (
+        NEW.url,
+        NEW.title,
+        NEW.resume,
+        NEW.news,
+        OLD.date,  -- Используем старое значение даты
+        (SELECT id FROM agencies WHERE telegram = NEW.agency),
+        (SELECT id FROM categories WHERE category = NEW.category),
+        NEW.links
+        );
+    ELSE
+        INSERT INTO news (url, title, resume, news, date, agency_id, category_id, links)
+        VALUES (
+        NEW.url,
+        NEW.title,
+        NEW.resume,
+        NEW.news,
+        (NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',
+        (SELECT id FROM agencies WHERE telegram = NEW.agency),
+        (SELECT id FROM categories WHERE category = NEW.category),
+        NEW.links
+        );
+    END IF;
+
+    -- Вставка данных в таблицу embs, если передан embedding
     IF NEW.embedding IS NOT NULL THEN
-        INSERT INTO embs (date, url, embedding)
-        VALUES ((NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',
+        IF NEW.date IS NOT DISTINCT FROM OLD.date THEN
+            INSERT INTO embs (date, url, embedding)
+            VALUES (
+                OLD.date,  -- Используем старое значение даты
                 NEW.url,
-                NEW.embedding)
-        ON CONFLICT (date, url) DO UPDATE
+                NEW.embedding
+            )
+            ON CONFLICT (date, url) DO UPDATE
             SET embedding = EXCLUDED.embedding;
+        ELSE
+            INSERT INTO embs (date, url, embedding)
+            VALUES (
+                (NEW.date AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'UTC',  -- Преобразование новой даты
+                NEW.url,
+                NEW.embedding
+            )
+            ON CONFLICT (date, url) DO UPDATE
+            SET embedding = EXCLUDED.embedding;
+        END IF;
     END IF;
 
     RETURN NEW;
@@ -275,18 +315,15 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION trg_delete_news_view() RETURNS trigger AS
 $$
+
 BEGIN
     -- Удаление данных из таблицы news
-    DELETE
-    FROM news
-    WHERE url = OLD.url
-      AND date = OLD.date;
+    DELETE FROM news
+    WHERE url = OLD.url;
 
     -- Удаление данных из таблицы embs
-    DELETE
-    FROM embs
-    WHERE url = OLD.url
-      AND date = OLD.date;
+    DELETE FROM embs
+    WHERE url = OLD.url;
 
     RETURN OLD;
 END;
