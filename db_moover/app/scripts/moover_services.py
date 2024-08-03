@@ -110,4 +110,3 @@ async def insert_data(records):
                                     record['title'], record['resume'], record['category']) for record in records])
 
     await conn.close()
-

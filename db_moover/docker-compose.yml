@@ -2,5 +2,5 @@ services:
 
     moover:
         build: .
-        restart: always
         container_name: moover
+        image: moover

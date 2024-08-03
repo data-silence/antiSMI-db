@@ -1,0 +1,6 @@
+services:
+
+    moover:
+        build: app
+        restart: always
+        container_name: moover
