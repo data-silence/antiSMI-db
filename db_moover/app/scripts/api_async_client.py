@@ -14,8 +14,9 @@ class NewsAPIClient:
                 return await response.json()
 
     async def make_embs(self, news_list: list[str]) -> list[float]:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{self.base_url}/services/generate_embs", json=news_list) as response:
+        timeout = aiohttp.ClientTimeout(total=36000)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(f"{self.base_url}/models/generate_embs", json=news_list) as response:
                 return await response.json()
 
     async def delete_news_batch(self, urls: list[str]) -> dict[str, Any]:
@@ -40,7 +41,8 @@ class NewsAPIClient:
                 return await response.json()
 
     async def update_news_batch(self, updates: List[Dict[str, Any]]) -> Dict[str, Any]:
-        async with aiohttp.ClientSession() as session:
+        timeout = aiohttp.ClientTimeout(total=36000)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             payload = {"updates": [{"url": item["url"], "embedding": item["embedding"]} for item in updates]}
             async with session.put(f"{self.base_url}/crud/update/news_batch", json=payload) as response:
                 return await response.json()
